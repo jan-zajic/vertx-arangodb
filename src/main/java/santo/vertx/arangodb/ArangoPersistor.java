@@ -16,26 +16,28 @@
 
 package santo.vertx.arangodb;
 
+import java.util.Base64;
 import java.util.HashMap;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.http.HttpClient;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.json.impl.Base64;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.java.platform.Verticle;
+
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Context;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpClient;
+import io.vertx.core.http.HttpClientOptions;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
+import io.vertx.core.logging.LoggerFactory;
+import io.vertx.core.net.JksOptions;
 import santo.vertx.arangodb.rest.AbstractRestAPI;
 import santo.vertx.arangodb.rest.AqlAPI;
 import santo.vertx.arangodb.rest.CollectionAPI;
-import santo.vertx.arangodb.rest.DatabaseAPI;
 import santo.vertx.arangodb.rest.DocumentAPI;
 import santo.vertx.arangodb.rest.EdgeAPI;
 import santo.vertx.arangodb.rest.GenericAPI;
 import santo.vertx.arangodb.rest.GharialAPI;
 import santo.vertx.arangodb.rest.GraphAPI;
-import santo.vertx.arangodb.rest.IndexAPI;
 import santo.vertx.arangodb.rest.SimpleQueryAPI;
 import santo.vertx.arangodb.rest.TransactionAPI;
 import santo.vertx.arangodb.rest.TraversalAPI;
@@ -44,7 +46,7 @@ import santo.vertx.arangodb.rest.TraversalAPI;
  *
  * @author sANTo
  */
-public class ArangoPersistor extends Verticle implements Handler<Message<JsonObject>> {
+public class ArangoPersistor extends AbstractVerticle implements Handler<Message<JsonObject>> {
 
     // DEFAULT SETTINGS
     public final String SYSTEM_DATABASE = "_system";
@@ -105,11 +107,9 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
 
     // Request Types
     public static final String MSG_TYPE_GENERIC = "generic";
-    public static final String MSG_TYPE_DATABASE = "database";
     public static final String MSG_TYPE_DOCUMENT = "document";
     public static final String MSG_TYPE_EDGE = "edge";
     public static final String MSG_TYPE_AQL = "aql";
-    public static final String MSG_TYPE_AQL_USER = "aql_user";
     public static final String MSG_TYPE_SIMPLE_QUERY = "query";
     public static final String MSG_TYPE_COLLECTION = "collection";
     public static final String MSG_TYPE_INDEX = "index";
@@ -117,31 +117,25 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
     public static final String MSG_TYPE_GRAPH = "graph";
     public static final String MSG_TYPE_GHARIAL = "gharial";
     public static final String MSG_TYPE_TRAVERSAL = "traversal";
-    public static final String MSG_TYPE_REPLICATION = "replication";
-    public static final String MSG_TYPE_IMPORT = "import";
-    public static final String MSG_TYPE_BATCH = "batch";
-    public static final String MSG_TYPE_ADMIN = "admin";
-    public static final String MSG_TYPE_USER = "user";
-    public static final String MSG_TYPE_ASYNC = "async";
-    public static final String MSG_TYPE_ENDPOINT = "endpoint";
-    public static final String MSG_TYPE_SHARDING = "sharding";
-    public static final String MSG_TYPE_MISC = "misc";
 
-    private Logger logger;
+    private Logger logger = LoggerFactory.getLogger(ArangoPersistor.class.getName());
+    
     private final String logPrefix = "";
 
     private JsonObject config = null;
-    //private HttpClient restClient = null;
-    //private String credentialsHeader = null;
+
     private volatile HashMap<String, HttpClient> clients = new HashMap<>();
     private volatile HashMap<String, String> credentials = new HashMap<>();
 
     @Override
+    public void init(Vertx vertx, Context context) {
+    	super.init(vertx, context);
+    	logger.info(logPrefix + "Initializing " + this.getClass().getCanonicalName());
+    	setConfig(context.config());
+    }
+    
+    @Override
     public void start() {
-        logger = container.logger();
-        logger.info(logPrefix + "Initializing " + this.getClass().getCanonicalName());
-        setConfig(container.config());
-
         configure();
         listen();
     }
@@ -197,24 +191,32 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
         
         HttpClient client = clients.get(hostname + ":" + port);
         if (client == null) {
-            client = vertx.createHttpClient();
-            client.setSSL(SETTING_SSL);
-            client.setTrustAll(SETTING_SSL_TRUSTALL);
-            if (client.isSSL()) client.setVerifyHost(SETTING_SSL_VERIFYHOST);
-            client.setHost(hostname);
-            client.setPort(port);
-            client.setKeepAlive(SETTING_KEEPALIVE);
-            if (SETTING_SSL_TRUSTSTORE != null) client.setTrustStorePath(SETTING_SSL_TRUSTSTORE);
-            if (SETTING_SSL_TRUSTSTORE_PASSWORD != null) client.setTrustStorePassword(SETTING_SSL_TRUSTSTORE_PASSWORD);
-            if (SETTING_SSL_KEYSTORE != null) client.setKeyStorePath(SETTING_SSL_KEYSTORE);
-            if (SETTING_SSL_KEYSTORE_PASSWORD != null) client.setKeyStorePassword(SETTING_SSL_KEYSTORE_PASSWORD);
-            client.setMaxPoolSize(SETTING_MAXPOOLSIZE);
-            client.setConnectTimeout(SETTING_CONNECT_TIMEOUT);
-            client.setReuseAddress(SETTING_REUSE_ADDRESS);
-            client.setTCPKeepAlive(SETTING_TCP_KEEPALIVE);
-            client.setTCPNoDelay(SETTING_TCP_NODELAY);
-            client.setTryUseCompression(SETTING_COMPRESSION);
-            
+        	HttpClientOptions options = new HttpClientOptions()
+        			.setSsl(SETTING_SSL)
+        			.setTrustAll(SETTING_SSL_TRUSTALL);
+        	
+            if (options.isSsl()) options.setVerifyHost(SETTING_SSL_VERIFYHOST);
+            options.setDefaultHost(hostname);
+            options.setDefaultPort(port);
+            options.setKeepAlive(SETTING_KEEPALIVE);
+            if (SETTING_SSL_TRUSTSTORE != null)
+            	options.setTrustStoreOptions(new JksOptions()
+            			.setPath(SETTING_SSL_TRUSTSTORE)
+            			.setPassword(SETTING_SSL_TRUSTSTORE_PASSWORD)
+			);
+             
+            if (SETTING_SSL_KEYSTORE != null) {
+            	options.setKeyStoreOptions(new JksOptions()
+            			.setPath(SETTING_SSL_KEYSTORE)
+            			.setPassword(SETTING_SSL_KEYSTORE_PASSWORD));
+            }
+            options.setMaxPoolSize(SETTING_MAXPOOLSIZE);
+            options.setConnectTimeout(SETTING_CONNECT_TIMEOUT);
+            options.setReuseAddress(SETTING_REUSE_ADDRESS);
+            options.setKeepAlive(SETTING_TCP_KEEPALIVE);
+            options.setTcpNoDelay(SETTING_TCP_NODELAY);
+            options.setTryUseCompression(SETTING_COMPRESSION);
+            client = vertx.createHttpClient(options);
             // Keep reference
             clients.put(hostname + ":" + port, client);
         }
@@ -234,7 +236,7 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
         String credentialsHeader = credentials.get(hostname + ":" + port);
         if (credentialsHeader == null) {
             if (username != null && password != null) {
-                credentialsHeader = Base64.encodeBytes(new StringBuilder(SETTING_USERNAME + ":").append(SETTING_PASSWORD).toString().getBytes(), Base64.DONT_BREAK_LINES);
+                credentialsHeader = Base64.getEncoder().encodeToString(new StringBuilder(SETTING_USERNAME + ":").append(SETTING_PASSWORD).toString().getBytes());
                 
                 // Keep reference
                 credentials.put(hostname + ":" + port, credentialsHeader);
@@ -249,14 +251,7 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
     }
     
     private void listen() {
-        AsyncResultHandler<Void> registrationHandler = new AsyncResultHandler<Void>() {
-            @Override
-            public void handle(AsyncResult<Void> asyncResult) {
-                logger.info(logPrefix + "ArangoPersistor " + (asyncResult.succeeded() ? " registered successfully" : "failed to register") + " on the eventbus (" + SETTING_ADDRESS + ")");
-            }
-        };
-
-        vertx.eventBus().registerHandler(SETTING_ADDRESS, this, registrationHandler);
+        vertx.eventBus().consumer(SETTING_ADDRESS, this);
     }
     
     @Override
@@ -279,9 +274,6 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
                 }
                 api = new GenericAPI(logger, this);
                 break;
-            case MSG_TYPE_DATABASE:
-                api = new DatabaseAPI(logger, this);
-                break;
             case MSG_TYPE_DOCUMENT:
                 api = new DocumentAPI(logger, this);
                 break;                
@@ -291,17 +283,11 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
             case MSG_TYPE_AQL:
                 api = new AqlAPI(logger, this);
                 break;
-            case MSG_TYPE_AQL_USER:
-                //api = new AqlUserAPI(logger, this);
-                break;
             case MSG_TYPE_SIMPLE_QUERY:
                 api = new SimpleQueryAPI(logger, this);
                 break;                
             case MSG_TYPE_COLLECTION:
                 api = new CollectionAPI(logger, this);
-                break;
-            case MSG_TYPE_INDEX:
-                api = new IndexAPI(logger, this);
                 break;
             case MSG_TYPE_TRANSACTION:
                 api = new TransactionAPI(logger, this);
@@ -314,33 +300,6 @@ public class ArangoPersistor extends Verticle implements Handler<Message<JsonObj
                 break;
             case MSG_TYPE_TRAVERSAL:
                 api = new TraversalAPI(logger, this);
-                break;
-            case MSG_TYPE_REPLICATION:
-                //api = new ReplicationAPI(logger, this);
-                break;                
-            case MSG_TYPE_IMPORT:
-                //api = new ImportAPI(logger, this);
-                break;
-            case MSG_TYPE_BATCH:
-                //api = new BatchAPI(logger, this);
-                break;
-            case MSG_TYPE_ADMIN:
-                //api = new AdminAPI(logger, this);
-                break;                
-            case MSG_TYPE_USER:
-                //api = new UserAPI(logger, this);
-                break;
-            case MSG_TYPE_ASYNC:
-                //api = new AsyncAPI(logger, this);
-                break;
-            case MSG_TYPE_ENDPOINT:
-                //api = new EndpointAPI(logger, this);
-                break;                
-            case MSG_TYPE_SHARDING:
-                //api = new ShardingAPI(logger, this);
-                break;
-            case MSG_TYPE_MISC:
-                //api = new MiscAPI(logger, this);
                 break;
                 
             default:

@@ -17,17 +17,20 @@
 package santo.vertx.arangodb.integration;
 
 import java.net.URL;
-import org.junit.Assert;
-import org.junit.Test;
-import org.vertx.java.core.AsyncResult;
-import org.vertx.java.core.AsyncResultHandler;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
-import org.vertx.testtools.TestVerticle;
-import org.vertx.testtools.VertxAssert;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.runner.RunWith;
+
+import io.vertx.core.DeploymentOptions;
+import io.vertx.core.DeploymentOptionsConverter;
+import io.vertx.core.Vertx;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.TestContext;
+import io.vertx.ext.unit.junit.VertxUnitRunner;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.Helper;
 
@@ -35,68 +38,73 @@ import santo.vertx.arangodb.Helper;
  *
  * @author sANTo
  */
-public class BaseIntegrationTest extends TestVerticle {
-    
-    public static String indexHashId = null;
-    public static String indexSkiplistId = null;
-    public static String indexFulltextId = null;
-    public static String indexCapId = null;
-    public static String indexGeoId = null;
-    
-    public static final String DEFAULT_ADDRESS = "santo.vertx.arangodb";
-    public static final String DEFAULT_TEST_DB = "testdb";
-    
-    public Logger logger;
-    public final String logPrefix = "";
-    public JsonObject config;
-    public String address;
-    public String dbName;
-    public String dbUser;
-    public String dbPwd;
-    
-    public String vertexColName = "vertexcol";
-    public String edgeColName = "edgecol";
-    
-    @Override
-    public void start() {
-        initialize();
-        logger = container.logger();
-        config = loadConfig();
-        address = Helper.getHelper().getOptionalString(config, "address", DEFAULT_ADDRESS);
-        dbName = Helper.getHelper().getOptionalString(config, "dbname", DEFAULT_TEST_DB);
-        dbUser = Helper.getHelper().getOptionalString(config, "username", null);
-        dbPwd = Helper.getHelper().getOptionalString(config, "password", null);
-        
-        // Deploy our persistor before starting the tests
-        deployVerticle(ArangoPersistor.class.getName(), config, 1);
-    }
-    
-    private void deployVerticle(final String vertName, JsonObject vertConfig, int vertInstances) {
-        logger.trace(logPrefix + "(deployVerticle) vertName: " + vertName);
-        if (vertName == null || vertConfig == null) {
-            logger.error(logPrefix + "Unable to deploy the requested verticle because one of the parameters is invalid: " + "Name=" + vertName + ",Config=" + vertConfig);
-            return;
-        }
-        container.deployVerticle(vertName, vertConfig, vertInstances, new AsyncResultHandler<String>() {
-            @Override
-            public void handle(AsyncResult<String> asyncResult) {
-                logger.info(logPrefix + "verticle " + vertName + (asyncResult.succeeded() ? " was deployed successfully !" : " failed to deploy"));
-                VertxAssert.assertTrue(asyncResult.succeeded());
-                VertxAssert.assertNotNull("Persistor deployment failed", asyncResult.result());
-                startTests();
-            }
-        });
-    }
+@RunWith(VertxUnitRunner.class)
+public abstract class BaseIntegrationTest {
 
-    private JsonObject loadConfig() {
-        logger.info(logPrefix + "(re)loading Config");
-        URL url = getClass().getResource("/config.json");
-        url.getFile();
-        Buffer configBuffer = vertx.fileSystem().readFileSync(url.getFile());
-        if (configBuffer != null) {
-            return new JsonObject(configBuffer.toString());
-        }
-        
-        return new JsonObject();
-    }
+	protected static final Logger logger = Logger.getLogger(BaseIntegrationTest.class.getName());
+	
+	public static String indexHashId = null;
+	public static String indexSkiplistId = null;
+	public static String indexFulltextId = null;
+	public static String indexCapId = null;
+	public static String indexGeoId = null;
+
+	public static final String DEFAULT_ADDRESS = "santo.vertx.arangodb";
+	public static final String DEFAULT_TEST_DB = "testdb";
+	
+	public final String logPrefix = "";
+	public JsonObject config;
+	public String address;
+	public String dbName;
+	public String dbUser;
+	public String dbPwd;
+
+	public String vertexColName = "vertexcol";
+	public String edgeColName = "edgecol";
+
+	protected Vertx vertx;
+	
+	@Before
+	public void before(TestContext context) {
+		 // Use the underlying vertx instance
+		vertx = Vertx.vertx();
+		config = loadConfig();
+		address = Helper.getHelper().getOptionalString(config, "address", DEFAULT_ADDRESS);
+		dbName = Helper.getHelper().getOptionalString(config, "dbname", DEFAULT_TEST_DB);
+		dbUser = Helper.getHelper().getOptionalString(config, "username", null);
+		dbPwd = Helper.getHelper().getOptionalString(config, "password", null);
+		DeploymentOptions options = new DeploymentOptions();
+		options.setConfig(config);
+		// Deploy our persistor before starting the tests
+		deployVerticle(ArangoPersistor.class.getName(), options, context);
+	}
+
+	private void deployVerticle(final String vertName, DeploymentOptions vertConfig, TestContext context) {
+		logger.log(Level.INFO, logPrefix + "(deployVerticle) vertName: " + vertName);
+		if (vertName == null || vertConfig == null) {
+			logger.log(Level.SEVERE,
+					logPrefix + "Unable to deploy the requested verticle because one of the parameters is invalid: "
+							+ "Name=" + vertName + ",Config=" + vertConfig);
+			return;
+		}
+		vertx.deployVerticle(vertName, vertConfig, context.asyncAssertSuccess());
+	}
+
+	private JsonObject loadConfig() {
+		logger.info(logPrefix + "(re)loading Config");
+		URL url = getClass().getResource("/config.json");
+		url.getFile();
+		Buffer configBuffer = vertx.fileSystem().readFileBlocking(url.getFile());
+		if (configBuffer != null) {
+			return new JsonObject(configBuffer.toString());
+		}
+
+		return new JsonObject();
+	}
+	
+	@After
+	public void tearDown(TestContext context) {
+	  vertx.close(context.asyncAssertSuccess());
+	}
+	
 }

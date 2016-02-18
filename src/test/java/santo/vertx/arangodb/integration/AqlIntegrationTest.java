@@ -16,13 +16,18 @@
 
 package santo.vertx.arangodb.integration;
 
+import java.util.logging.Level;
+
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.testtools.VertxAssert;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.rest.AqlAPI;
 
@@ -38,299 +43,307 @@ public class AqlIntegrationTest extends BaseIntegrationTest {
     public static String idVertex02;
     
     @Test
-    public void test01ExecuteCursor() {
+    public void test01ExecuteCursor(TestContext context) {
+    	final Async async = context.async();
         System.out.println("*** test01ExecuteCursor ***");
         String query = "FOR v in " + vertexColName + " LIMIT 2 RETURN v";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
-        documentObject.putBoolean("count", true);
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
+        documentObject.put("count", true);
         JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                	if(reply.cause() != null)
+                		logger.log(Level.SEVERE, "test01ExecuteCursor", reply.cause());
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No count number received", arangoResult.getNumber("count"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getInteger("count"), "No count number received");
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test01ExecuteCursor");
+                	logger.log(Level.SEVERE, "test01ExecuteCursor", e);
+                    context.fail("test01ExecuteCursor");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test02ValidateQuery() {
+    public void test02ValidateQuery(TestContext context) {
         System.out.println("*** test02ValidateQuery ***");
         String query = "FOR v in " + vertexColName + " LIMIT 1 RETURN v";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_VALIDATE);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_VALIDATE);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No collections found", arangoResult.getArray("collections"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"),"Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getJsonArray("collections"), "No collections found");
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test02ValidateQuery");
+                    context.fail("test02ValidateQuery");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test03ExecuteNext() {
+    public void test03ExecuteNext(TestContext context) {
         System.out.println("*** test03ExecuteNext ***");
         String query = "FOR v in " + vertexColName + " LIMIT 2 RETURN v";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
-        documentObject.putBoolean("count", true);
-        documentObject.putNumber("batchSize", 1);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
+        documentObject.put("count", true);
+        documentObject.put("batchSize", 1);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No count number received", arangoResult.getNumber("count"));
-                    VertxAssert.assertTrue("No cursor available", arangoResult.getBoolean("hasMore"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) 
+                    	context.assertNotNull(arangoResult.getInteger("count"),"No count number received");
+                    context.assertTrue(arangoResult.getBoolean("hasMore"), "No cursor available");
                     String cursorId = arangoResult.getString("id");
                     
                     // cursor ok, now retrieve next batch
-                    JsonObject requestObject = new JsonObject();
-                    requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-                    requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_NEXT);
-                    requestObject.putString(AqlAPI.MSG_PROPERTY_ID, cursorId);
-                    vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+                    JsonObject requestObject = new JsonObject(); final Async async = context.async();
+                    requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+                    requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_NEXT);
+                    requestObject.put(AqlAPI.MSG_PROPERTY_ID, cursorId);
+                    vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
-                        public void handle(Message<JsonObject> reply) {
+                        public void handle(AsyncResult<Message<JsonObject>> reply) {
                             try {
-                                JsonObject response = reply.body();
+                                JsonObject response = reply.result().body();
                                 System.out.println("response: " + response);
-                                JsonObject arangoResult = response.getObject("result");
-                                VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                                if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No count number received", arangoResult.getNumber("count"));
+                                JsonObject arangoResult = response.getJsonObject("result");
+                                context.assertTrue(!arangoResult.getBoolean("error"),"Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                                if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getInteger("count"), "No count number received");
                             }
                             catch (Exception e) {
-                                VertxAssert.fail("test03ExecuteNext");
+                                context.fail("test03ExecuteNext");
                             }
-                            VertxAssert.testComplete();
+                            context.asyncAssertSuccess();
                         }
                     });
                     
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test03ExecuteNext");
+                    context.fail("test03ExecuteNext");
                 }
-                //VertxAssert.testComplete();
+                //context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test04DeleteCursor() {
+    public void test04DeleteCursor(TestContext context) {
         System.out.println("*** test04DeleteCursor ***");
         String query = "FOR v in " + vertexColName + " LIMIT 2 RETURN v";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
-        documentObject.putBoolean("count", true);
-        documentObject.putNumber("batchSize", 1);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
+        documentObject.put("count", true);
+        documentObject.put("batchSize", 1);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXECUTE);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No count number received", arangoResult.getNumber("count"));
-                    VertxAssert.assertTrue("No cursor available", arangoResult.getBoolean("hasMore"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getInteger("count"), "No count number received");
+                    context.assertTrue(arangoResult.getBoolean("hasMore"), "No cursor available");
                     String cursorId = arangoResult.getString("id");
                     
                     // cursor ok, now retrieve next batch
-                    JsonObject requestObject = new JsonObject();
-                    requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-                    requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_DELETE);
-                    requestObject.putString(AqlAPI.MSG_PROPERTY_ID, cursorId);
-                    vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+                    JsonObject requestObject = new JsonObject(); final Async async = context.async();
+                    requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+                    requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_DELETE);
+                    requestObject.put(AqlAPI.MSG_PROPERTY_ID, cursorId);
+                    vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
-                        public void handle(Message<JsonObject> reply) {
+                        public void handle(AsyncResult<Message<JsonObject>> reply) {
                             try {
-                                JsonObject response = reply.body();
+                                JsonObject response = reply.result().body();
                                 System.out.println("response: " + response);
-                                JsonObject arangoResult = response.getObject("result");
-                                VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                                if (!arangoResult.getBoolean("error")) VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 202);
+                                JsonObject arangoResult = response.getJsonObject("result");
+                                context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                                if (!arangoResult.getBoolean("error")) 
+                                	context.assertTrue(arangoResult.getInteger("code") == 202, "Wrong return code received: " + arangoResult.getInteger("code"));
                             }
                             catch (Exception e) {
-                                VertxAssert.fail("test04DeleteCursor");
+                                context.fail("test04DeleteCursor");
                             }
-                            VertxAssert.testComplete();
+                            context.asyncAssertSuccess();
                         }
                     });
                     
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test04DeleteCursor");
+                    context.fail("test04DeleteCursor");
                 }
             }
         });
     }
 
     @Test
-    public void test05ExplainQuery() {
+    public void test05ExplainQuery(TestContext context) {
         System.out.println("*** test05ExplainQuery ***");
         String query = "FOR v in " + vertexColName + " LIMIT 1 RETURN v";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXPLAIN);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_QUERY, query);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_EXPLAIN);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 200);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertTrue(arangoResult.getInteger("code") == 200, "Wrong return code received: " + arangoResult.getInteger("code"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test05ExplainQuery");
+                    context.fail("test05ExplainQuery");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test06CreateFunction() {
+    public void test06CreateFunction(TestContext context) {
         System.out.println("*** test06CreateFunction ***");
         String name = "test::mytestfunction";
         String code = "function (celsius) { return celsius * 1.8 + 32; }";
         JsonObject documentObject = new JsonObject();
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_NAME, name);
-        documentObject.putString(AqlAPI.DOC_ATTRIBUTE_CODE, code);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_CREATE_FUNCTION);
-        requestObject.putObject(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_NAME, name);
+        documentObject.put(AqlAPI.DOC_ATTRIBUTE_CODE, code);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_CREATE_FUNCTION);
+        requestObject.put(AqlAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 201);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) 
+                    	context.assertTrue(arangoResult.getInteger("code") == 201, "Wrong return code received: " + arangoResult.getInteger("code"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test06CreateFunction");
+                    context.fail("test06CreateFunction");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test07GetFunctions() {
+    public void test07GetFunctions(TestContext context) {
         System.out.println("*** test07GetFunctions ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_GET_FUNCTION);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_GET_FUNCTION);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test07GetFunctions");
+                    context.fail("test07GetFunctions");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test08GetFunctionsFromNamespace() {
+    public void test08GetFunctionsFromNamespace(TestContext context) {
         System.out.println("*** test08GetFunctionsFromNamespace ***");
         String namespace = "test";
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_GET_FUNCTION);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_NAMESPACE, namespace);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_GET_FUNCTION);
+        requestObject.put(AqlAPI.MSG_PROPERTY_NAMESPACE, namespace);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test08GetFunctionsFromNamespace");
+                    context.fail("test08GetFunctionsFromNamespace");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }
 
     @Test
-    public void test09DeleteFunction() {
+    public void test09DeleteFunction(TestContext context) {
         System.out.println("*** test09DeleteFunction ***");
         String name = "test::mytestfunction";
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_DELETE_FUNCTION);
-        requestObject.putString(AqlAPI.MSG_PROPERTY_NAME, name);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_AQL);
+        requestObject.put(AqlAPI.MSG_PROPERTY_ACTION, AqlAPI.MSG_ACTION_DELETE_FUNCTION);
+        requestObject.put(AqlAPI.MSG_PROPERTY_NAME, name);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Aql request resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 200);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Aql request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) 
+                    	context.assertTrue(arangoResult.getInteger("code") == 200, "Wrong return code received: " + arangoResult.getInteger("code"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test09DeleteFunction");
+                    context.fail("test09DeleteFunction");
                 }
-                VertxAssert.testComplete();
+                context.asyncAssertSuccess();
             }
         });
     }

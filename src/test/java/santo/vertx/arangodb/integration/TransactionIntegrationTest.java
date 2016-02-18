@@ -19,13 +19,15 @@ package santo.vertx.arangodb.integration;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.testtools.VertxAssert;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.rest.TransactionAPI;
-
 /**
  * Integration tests for the {@link santo.vertx.arangodb.rest.TransactionAPI} against an external <a href="http://www.arangodb.com">ArangoDB</a> instance
  * 
@@ -35,75 +37,75 @@ import santo.vertx.arangodb.rest.TransactionAPI;
 public class TransactionIntegrationTest extends BaseIntegrationTest {
         
     @Test
-    public void test01ExecuteSimpleTransaction() {
+    public void test01ExecuteSimpleTransaction(TestContext context) {
         System.out.println("*** test01ExecuteSimpleTransaction ***");
         JsonObject transactionObject = new JsonObject();
         JsonObject collectionsObject = new JsonObject();
-        collectionsObject.putString("write", vertexColName);
-        transactionObject.putObject(TransactionAPI.DOC_ATTRIBUTE_COLLECTIONS, collectionsObject);
+        collectionsObject.put("write", vertexColName);
+        transactionObject.put(TransactionAPI.DOC_ATTRIBUTE_COLLECTIONS, collectionsObject);
         StringBuilder action = new StringBuilder();
         action.append("function () {");
         action.append("var db = require('internal').db;");
         action.append("db.").append(vertexColName).append(".save({'description': 'transaction doc'});");
         action.append("return db.").append(vertexColName).append(".count();");
         action.append("}");
-        transactionObject.putString(TransactionAPI.DOC_ATTRIBUTE_ACTION, action.toString());
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_TRANSACTION);
-        requestObject.putString(TransactionAPI.MSG_PROPERTY_ACTION, TransactionAPI.MSG_ACTION_EXECUTE);
-        requestObject.putObject(TransactionAPI.MSG_PROPERTY_DOCUMENT, transactionObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        transactionObject.put(TransactionAPI.DOC_ATTRIBUTE_ACTION, action.toString());
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_TRANSACTION);
+        requestObject.put(TransactionAPI.MSG_PROPERTY_ACTION, TransactionAPI.MSG_ACTION_EXECUTE);
+        requestObject.put(TransactionAPI.MSG_PROPERTY_DOCUMENT, transactionObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Transaction operation resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
-                    VertxAssert.assertTrue("Transaction operation resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    VertxAssert.assertTrue("wrong returncode received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 200);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Transaction operation resulted in an error: " + arangoResult.getString("errorMessage"), "ok", response.getString("status"));
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Transaction operation resulted in an error: " + arangoResult.getString("errorMessage"));
+                    context.assertTrue(arangoResult.getInteger("code") == 200, "wrong returncode received: " + arangoResult.getInteger("code"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test01ExecuteSimpleTransaction");
+                    context.fail("test01ExecuteSimpleTransaction");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test02ExecuteInvalidTransaction() {
+    public void test02ExecuteInvalidTransaction(TestContext context) {
         System.out.println("*** test02ExecuteInvalidTransaction ***");
         JsonObject transactionObject = new JsonObject();
         JsonObject collectionsObject = new JsonObject();
-        collectionsObject.putString("write", "invalid-collection");
-        transactionObject.putObject(TransactionAPI.DOC_ATTRIBUTE_COLLECTIONS, collectionsObject);
+        collectionsObject.put("write", "invalid-collection");
+        transactionObject.put(TransactionAPI.DOC_ATTRIBUTE_COLLECTIONS, collectionsObject);
         StringBuilder action = new StringBuilder();
         action.append("function () {");
         action.append("var db = require('internal').db;");
         action.append("db.").append("invalid-collection").append(".save({'description': 'transaction doc'});");
         action.append("return db.").append("invalid-collection").append(".count();");
         action.append("}");
-        transactionObject.putString(TransactionAPI.DOC_ATTRIBUTE_ACTION, action.toString());
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_TRANSACTION);
-        requestObject.putString(TransactionAPI.MSG_PROPERTY_ACTION, TransactionAPI.MSG_ACTION_EXECUTE);
-        requestObject.putObject(TransactionAPI.MSG_PROPERTY_DOCUMENT, transactionObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        transactionObject.put(TransactionAPI.DOC_ATTRIBUTE_ACTION, action.toString());
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_TRANSACTION);
+        requestObject.put(TransactionAPI.MSG_PROPERTY_ACTION, TransactionAPI.MSG_ACTION_EXECUTE);
+        requestObject.put(TransactionAPI.MSG_PROPERTY_DOCUMENT, transactionObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Transaction operation didn't return the expected error: " + response.getString("status"), "error", response.getString("status"));
-                    VertxAssert.assertTrue("Transaction operation didn't return the expected error: " + arangoResult.getBoolean("error"), arangoResult.getBoolean("error"));
-                    VertxAssert.assertTrue("wrong returncode received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 404);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Transaction operation didn't return the expected error: " + response.getString("status"), "error", response.getString("status"));
+                    context.assertTrue(arangoResult.getBoolean("error"), "Transaction operation didn't return the expected error: " + arangoResult.getBoolean("error"));
+                    context.assertTrue(arangoResult.getInteger("code") == 404, "wrong returncode received: " + arangoResult.getInteger("code"));
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test02ExecuteInvalidTransaction");
+                    context.fail("test02ExecuteInvalidTransaction");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }

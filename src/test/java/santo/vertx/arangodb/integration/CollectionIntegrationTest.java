@@ -19,10 +19,13 @@ package santo.vertx.arangodb.integration;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.testtools.VertxAssert;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.rest.CollectionAPI;
 import santo.vertx.arangodb.rest.DocumentAPI;
@@ -36,452 +39,452 @@ import santo.vertx.arangodb.rest.DocumentAPI;
 public class CollectionIntegrationTest extends BaseIntegrationTest {
 
     @Test
-    public void test01CreateTestCollections() {
+    public void test01CreateTestCollections(TestContext context) {
         System.out.println("*** test01CreateTestCollections ***");
         // Create a test collection that we can use throughout the whole test cycle
-        JsonObject documentObject = new JsonObject().putString("name", vertexColName);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
-        requestObject.putObject(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("name", vertexColName);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Collection creation resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No collection id received", arangoResult.getString("id"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Collection creation resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("id"), "No collection id received");
 
                     // Create an extra collection for edges
-                    JsonObject documentObject = new JsonObject().putString("name", edgeColName);
-                    documentObject.putNumber("type", 3);
-                    JsonObject requestObject = new JsonObject();
-                    requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-                    requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
-                    requestObject.putObject(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-                    vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+                    JsonObject documentObject = new JsonObject().put("name", edgeColName);
+                    documentObject.put("type", 3);
+                    JsonObject requestObject = new JsonObject(); final Async async = context.async();
+                    requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+                    requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
+                    requestObject.put(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+                    vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
-                        public void handle(Message<JsonObject> reply) {
+                        public void handle(AsyncResult<Message<JsonObject>> reply) {
                             try {
-                                JsonObject response = reply.body();
+                                JsonObject response = reply.result().body();
                                 System.out.println("response: " + response);
-                                JsonObject arangoResult = response.getObject("result");
-                                VertxAssert.assertTrue("Collection creation resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                                if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No collection id received", arangoResult.getString("id"));
+                                JsonObject arangoResult = response.getJsonObject("result");
+                                context.assertTrue(!arangoResult.getBoolean("error"), "Collection creation resulted in an error: " + arangoResult.getString("errorMessage"));
+                                if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("id"), "No collection id received");
                                 
                                 // Create an extra temp collection that we can remove in the next test
-                                JsonObject documentObject = new JsonObject().putString("name", "tempcol");
-                                JsonObject requestObject = new JsonObject();
-                                requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-                                requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
-                                requestObject.putObject(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-                                vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+                                JsonObject documentObject = new JsonObject().put("name", "tempcol");
+                                JsonObject requestObject = new JsonObject(); final Async async = context.async();
+                                requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+                                requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CREATE);
+                                requestObject.put(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+                                vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
                                     @Override
-                                    public void handle(Message<JsonObject> reply) {
+                                    public void handle(AsyncResult<Message<JsonObject>> reply) {
                                         try {
-                                            JsonObject response = reply.body();
+                                            JsonObject response = reply.result().body();
                                             System.out.println("response: " + response);
-                                            JsonObject arangoResult = response.getObject("result");
-                                            VertxAssert.assertTrue("Collection creation resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                                            if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No collection id received", arangoResult.getString("id"));
+                                            JsonObject arangoResult = response.getJsonObject("result");
+                                            context.assertTrue(!arangoResult.getBoolean("error"), "Collection creation resulted in an error: " + arangoResult.getString("errorMessage"));
+                                            if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("id"), "No collection id received");
                                         }
                                         catch (Exception e) {
-                                            VertxAssert.fail("test01CreateTestCollections");
+                                            context.fail("test01CreateTestCollections");
                                         }
-                                        VertxAssert.testComplete();
+                                        async.complete();
                                     }
                                 });
                             }
                             catch (Exception e) {
-                                VertxAssert.fail("test01CreateTestCollections");
+                                context.fail("test01CreateTestCollections");
                             }
                         }
                     });
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test01CreateTestCollections");
+                    context.fail("test01CreateTestCollections");
                 }
             }
         });
     }
 
     @Test
-    public void test02Rename() {
+    public void test02Rename(TestContext context) {
         System.out.println("*** test02Rename ***");
-        JsonObject documentObject = new JsonObject().putString("name", "tempcol-renamed");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_RENAME);
-        requestObject.putObject(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, "tempcol");
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("name", "tempcol-renamed");
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_RENAME);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, "tempcol");
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Loading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Loading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test02Rename");
+                    context.fail("test02Rename");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test03DeleteCollection() {
+    public void test03DeleteCollection(TestContext context) {
         System.out.println("*** test03DeleteCollection ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_DELETE);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, "tempcol-renamed");
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_DELETE);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, "tempcol-renamed");
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The removal of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The removal of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test03DeleteCollection");
+                    context.fail("test03DeleteCollection");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test04Rotate() {
+    public void test04Rotate(TestContext context) {
         System.out.println("*** test04Rotate ***");
         
         // A collection can only be truncated if it already has a journal, meaning we should have inserted at least 1 document already.
-        JsonObject documentObject = new JsonObject().putString("description", "test");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_DOCUMENT);
-        requestObject.putString(DocumentAPI.MSG_PROPERTY_ACTION, DocumentAPI.MSG_ACTION_CREATE);
-        requestObject.putObject(DocumentAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        requestObject.putString(DocumentAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("description", "test");
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_DOCUMENT);
+        requestObject.put(DocumentAPI.MSG_PROPERTY_ACTION, DocumentAPI.MSG_ACTION_CREATE);
+        requestObject.put(DocumentAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        requestObject.put(DocumentAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertTrue("Document creation resulted in an error: " + arangoResult.getString("errorMessage"), !arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No document key received", arangoResult.getString("_id"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertTrue(!arangoResult.getBoolean("error"), "Document creation resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("_id"), "No document key received");
 
-                    JsonObject requestObject = new JsonObject();
-                    requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-                    requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_ROTATE);
-                    requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-                    vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+                    JsonObject requestObject = new JsonObject(); final Async async = context.async();
+                    requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+                    requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_ROTATE);
+                    requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+                    vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
                         @Override
-                        public void handle(Message<JsonObject> reply) {
+                        public void handle(AsyncResult<Message<JsonObject>> reply) {
                             try {
-                                JsonObject response = reply.body();
+                                JsonObject response = reply.result().body();
                                 System.out.println("response: " + response);
-                                JsonObject arangoResult = response.getObject("result");
+                                JsonObject arangoResult = response.getJsonObject("result");
                                 // Treat 400 as ok, because it just means there is currently no journal (which is not an error with the API call)
-                                VertxAssert.assertTrue("Rotation of the specified collection resulted in an error: " + response.getString("message"), response.getInteger("statuscode") == 200 || response.getInteger("statuscode") == 400);
+                                context.assertTrue(response.getInteger("statuscode") == 200 || response.getInteger("statuscode") == 400, "Rotation of the specified collection resulted in an error: " + response.getString("message"));
                                 System.out.println("response details: " + arangoResult);
                             }
                             catch (Exception e) {
-                                VertxAssert.fail("test04Rotate");
+                                context.fail("test04Rotate");
                             }
-                            VertxAssert.testComplete();
+                            async.complete();
                         }
                     });
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test04Rotate");
+                    context.fail("test04Rotate");
                 }
-                //VertxAssert.testComplete();
+                //async.complete();
             }
         });
     }
 
     @Test
-    public void test05TruncateCollection() {
+    public void test05TruncateCollection(TestContext context) {
         System.out.println("*** test05TruncateCollection ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_TRUNCATE);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_TRUNCATE);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Truncation of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Truncation of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test05TruncateCollection");
+                    context.fail("test05TruncateCollection");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test06Unload() {
+    public void test06Unload(TestContext context) {
         System.out.println("*** test06Unload ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_UNLOAD);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_UNLOAD);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Unloading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Unloading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test06Unload");
+                    context.fail("test06Unload");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test07Load() {
+    public void test07Load(TestContext context) {
         System.out.println("*** test07Load ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_LOAD);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_LOAD);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Loading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Loading of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test07Load");
+                    context.fail("test07Load");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
     
     @Test
-    public void test08ChangeProperties() {
+    public void test08ChangeProperties(TestContext context) {
         System.out.println("*** test08ChangeProperties ***");
-        JsonObject documentObject = new JsonObject().putBoolean("waitForSync", false);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CHANGE_PROPERTIES);
-        requestObject.putObject(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("waitForSync", false);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CHANGE_PROPERTIES);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_DOCUMENT, documentObject);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Changing properties of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Changing properties of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test08ChangeProperties");
+                    context.fail("test08ChangeProperties");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test09ReadCollection() {
+    public void test09ReadCollection(TestContext context) {
         System.out.println("*** test09ReadCollection ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_READ);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_READ);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Reading the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Reading the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test09ReadCollection");
+                    context.fail("test09ReadCollection");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test10ListCollections() {
+    public void test10ListCollections(TestContext context) {
         System.out.println("*** test10ListCollections ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_LIST);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_LIST);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Listing all collections for the specified database resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Listing all collections for the specified database resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test10ListCollections");
+                    context.fail("test10ListCollections");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test11GetCollectionProperties() {
+    public void test11GetCollectionProperties(TestContext context) {
         System.out.println("*** test11GetCollectionProperties ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_GET_PROPERTIES);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_GET_PROPERTIES);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Getting properties of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Getting properties of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test11GetCollectionProperties");
+                    context.fail("test11GetCollectionProperties");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test12GetCollectionCount() {
+    public void test12GetCollectionCount(TestContext context) {
         System.out.println("*** test12GetCollectionCount ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_COUNT);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_COUNT);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Getting count info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Getting count info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test12GetCollectionCount");
+                    context.fail("test12GetCollectionCount");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test13GetCollectionFigures() {
+    public void test13GetCollectionFigures(TestContext context) {
         System.out.println("*** test13GetCollectionFigures ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_FIGURES);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_FIGURES);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Getting figures of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Getting figures of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test13GetCollectionFigures");
+                    context.fail("test13GetCollectionFigures");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test14GetCollectionRevision() {
+    public void test14GetCollectionRevision(TestContext context) {
         System.out.println("*** test14GetCollectionRevision ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_REVISION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_REVISION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Getting revision info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Getting revision info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test14GetCollectionRevision");
+                    context.fail("test14GetCollectionRevision");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test15GetCollectionChecksum() {
+    public void test15GetCollectionChecksum(TestContext context) {
         System.out.println("*** test15GetCollectionChecksum ***");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CHECKSUM);
-        requestObject.putString(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_COLLECTION);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_ACTION, CollectionAPI.MSG_ACTION_CHECKSUM);
+        requestObject.put(CollectionAPI.MSG_PROPERTY_COLLECTION, vertexColName);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("Getting checksum info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("Getting checksum info of the specified collection resulted in an error: " + response.getString("message"), "ok", response.getString("status"));
                     System.out.println("response details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test15GetCollectionChecksum");
+                    context.fail("test15GetCollectionChecksum");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }

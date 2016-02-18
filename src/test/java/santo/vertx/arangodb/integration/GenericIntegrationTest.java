@@ -19,13 +19,15 @@ package santo.vertx.arangodb.integration;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.testtools.VertxAssert;
+
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Handler;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.unit.Async;
+import io.vertx.ext.unit.TestContext;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.rest.GenericAPI;
-
 /**
  * Integration tests for the {@link santo.vertx.arangodb.rest.GenericAPI} against an external <a href="http://www.arangodb.com">ArangoDB</a> instance
  * 
@@ -38,178 +40,178 @@ public class GenericIntegrationTest extends BaseIntegrationTest {
     public static String revTestDoc;
     
     @Test
-    public void test01PerformPostRequest() {
+    public void test01PerformPostRequest(TestContext context) {
         System.out.println("*** test01PerformPostRequest ***");
         String path = "/document/?collection=" + vertexColName;
-        JsonObject documentObject = new JsonObject().putString("name", "POST test document");
-        documentObject.putNumber("age", 30);
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_POST);
-        requestObject.putObject(GenericAPI.MSG_PROPERTY_BODY, documentObject);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("name", "POST test document");
+        documentObject.put("age", 30);
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_POST);
+        requestObject.put(GenericAPI.MSG_PROPERTY_BODY, documentObject);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The POST request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    VertxAssert.assertFalse("The POST request resulted in an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No document id received", arangoResult.getString("_id"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The POST request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    context.assertFalse(arangoResult.getBoolean("error"), "The POST request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("_id"), "No document id received");
                     
                     idTestDoc = arangoResult.getString("_id");
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test01PerformPostRequest");
+                    context.fail("test01PerformPostRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test02PerformGetRequest() {
+    public void test02PerformGetRequest(TestContext context) {
         System.out.println("*** test02PerformGetRequest ***");
         String path = "/document/" + idTestDoc;
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_GET);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_GET);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The GET request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    //VertxAssert.assertFalse("The GET request returned an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    //VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 200);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The GET request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    //context.assertFalse(arangoResult.getBoolean("error"), "The GET request returned an error: " + arangoResult.getString("errorMessage"));
+                    //context.assertTrue(arangoResult.getInteger("code") == 200, "Wrong return code received: " + arangoResult.getInteger("code"));
                     System.out.println("result details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test02PerformGetRequest");
+                    context.fail("test02PerformGetRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
     
     @Test
-    public void test03PerformHeadRequest() {
+    public void test03PerformHeadRequest(TestContext context) {
         System.out.println("*** test03PerformHeadRequest ***");
         String path = "/document/" + idTestDoc;
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_HEAD);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_HEAD);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The HEAD request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    //VertxAssert.assertFalse("The HEAD request returned an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    //VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 200);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The HEAD request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    //context.assertFalse(arangoResult.getBoolean("error"), "The HEAD request returned an error: " + arangoResult.getString("errorMessage"));
+                    //context.assertTrue(arangoResult.getInteger("code") == 200, "Wrong return code received: " + arangoResult.getInteger("code"));
                     System.out.println("result details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test03PerformHeadRequest");
+                    context.fail("test03PerformHeadRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test04PerformPatchRequest() {
+    public void test04PerformPatchRequest(TestContext context) {
         System.out.println("*** test04PerformPatchRequest ***");
         String path = "/document/" + idTestDoc;
-        JsonObject documentObject = new JsonObject().putString("name", "PATCH test document");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_PATCH);
-        requestObject.putObject(GenericAPI.MSG_PROPERTY_BODY, documentObject);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("name", "PATCH test document");
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_PATCH);
+        requestObject.put(GenericAPI.MSG_PROPERTY_BODY, documentObject);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The PATCH request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    VertxAssert.assertFalse("The PATCH request resulted in an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No document id received", arangoResult.getString("_id"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The PATCH request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    context.assertFalse(arangoResult.getBoolean("error"), "The PATCH request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("_id"), "No document id received");
                     
                     revTestDoc = arangoResult.getString("_rev");
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test04PerformPatchRequest");
+                    context.fail("test04PerformPatchRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test05PerformPutRequest() {
+    public void test05PerformPutRequest(TestContext context) {
         System.out.println("*** test05PerformPutRequest ***");
         String path = "/document/" + idTestDoc;
-        JsonObject documentObject = new JsonObject().putString("name", "PUT test document");
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_PUT);
-        requestObject.putObject(GenericAPI.MSG_PROPERTY_BODY, documentObject);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject documentObject = new JsonObject().put("name", "PUT test document");
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_PUT);
+        requestObject.put(GenericAPI.MSG_PROPERTY_BODY, documentObject);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The PUT request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    VertxAssert.assertFalse("The PUT request resulted in an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    if (!arangoResult.getBoolean("error")) VertxAssert.assertNotNull("No document id received", arangoResult.getString("_id"));
-                    VertxAssert.assertNotSame("Document not correctly replaced", revTestDoc, arangoResult.getString("_rev"));
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The PUT request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    context.assertFalse(arangoResult.getBoolean("error"), "The PUT request resulted in an error: " + arangoResult.getString("errorMessage"));
+                    if (!arangoResult.getBoolean("error")) context.assertNotNull(arangoResult.getString("_id"), "No document id received");
+                    context.assertNotEquals(revTestDoc,arangoResult.getString("_rev"),"Document not correctly replaced");
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test05PerformPutRequest");
+                    context.fail("test05PerformPutRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }
 
     @Test
-    public void test06PerformDeleteRequest() {
+    public void test06PerformDeleteRequest(TestContext context) {
         System.out.println("*** test06PerformDeleteRequest ***");
         String path = "/document/" + idTestDoc;
-        JsonObject requestObject = new JsonObject();
-        requestObject.putString(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_DELETE);
-        requestObject.putString(GenericAPI.MSG_PROPERTY_PATH, path);
-        vertx.eventBus().send(address, requestObject, new Handler<Message<JsonObject>>() {
+        JsonObject requestObject = new JsonObject(); final Async async = context.async();
+        requestObject.put(ArangoPersistor.MSG_PROPERTY_TYPE, ArangoPersistor.MSG_TYPE_GENERIC);
+        requestObject.put(GenericAPI.MSG_PROPERTY_ACTION, GenericAPI.MSG_ACTION_DELETE);
+        requestObject.put(GenericAPI.MSG_PROPERTY_PATH, path);
+        vertx.eventBus().send(address, requestObject, new Handler<AsyncResult<Message<JsonObject>>>() {
             @Override
-            public void handle(Message<JsonObject> reply) {
+            public void handle(AsyncResult<Message<JsonObject>> reply) {
                 try {
-                    JsonObject response = reply.body();
+                    JsonObject response = reply.result().body();
                     System.out.println("response: " + response);
-                    JsonObject arangoResult = response.getObject("result");
-                    VertxAssert.assertEquals("The DELETE request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
-                    //VertxAssert.assertFalse("The DELETE request returned an error: " + arangoResult.getString("errorMessage"), arangoResult.getBoolean("error"));
-                    //VertxAssert.assertTrue("Wrong return code received: " + arangoResult.getInteger("code"), arangoResult.getInteger("code") == 202);
+                    JsonObject arangoResult = response.getJsonObject("result");
+                    context.assertEquals("The DELETE request status was NOT OK: " + response.getString("message"), "ok", response.getString("status"));
+                    //context.assertFalse(arangoResult.getBoolean("error"), "The DELETE request returned an error: " + arangoResult.getString("errorMessage"));
+                    //context.assertTrue(arangoResult.getInteger("code") == 202, "Wrong return code received: " + arangoResult.getInteger("code"));
                     System.out.println("result details: " + arangoResult);
                 }
                 catch (Exception e) {
-                    VertxAssert.fail("test06PerformDeleteRequest");
+                    context.fail("test06PerformDeleteRequest");
                 }
-                VertxAssert.testComplete();
+                async.complete();
             }
         });
     }

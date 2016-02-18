@@ -20,13 +20,14 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
-import org.vertx.java.core.Handler;
-import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.http.HttpClientResponse;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
+
+import io.vertx.core.Handler;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpClientResponse;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
 import santo.vertx.arangodb.Helper;
 
 /**
@@ -72,7 +73,7 @@ public class RestResponseHandler implements Handler<HttpClientResponse> {
                 responseData.append(body);
                 logger.trace("> response: (" + getId() + ")" + responseData);
                 if (responseData != null && responseData.length() > 0) {
-                    if (responseData.toString().startsWith("[")) restResponse = new JsonArray(responseData.toString()).get(0);
+                    if (responseData.toString().startsWith("[")) restResponse = new JsonArray(responseData.toString()).getJsonObject(0);
                     else restResponse = new JsonObject(responseData.toString());
                 }
                 

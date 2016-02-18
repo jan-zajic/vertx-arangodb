@@ -16,9 +16,9 @@
 
 package santo.vertx.arangodb;
 
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonArray;
-import org.vertx.java.core.json.JsonObject;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 
 /**
  *
@@ -163,11 +163,11 @@ public class Helper {
         }
         else {
             JsonObject responseMsg = new JsonObject();
-            responseMsg.putString(PROPERTY_MSG_STATUS, status);
-            if (statuscode >= 100) responseMsg.putNumber(PROPERTY_MSG_STATUSCODE, statuscode);
-            if (message != null) responseMsg.putString(PROPERTY_MSG_MESSAGE, message);
-            if (severity != null) responseMsg.putString(PROPERTY_MSG_SEVERITY, severity);
-            if (result != null) responseMsg.putValue(PROPERTY_MSG_RESULT, result);
+            responseMsg.put(PROPERTY_MSG_STATUS, status);
+            if (statuscode >= 100) responseMsg.put(PROPERTY_MSG_STATUSCODE, statuscode);
+            if (message != null) responseMsg.put(PROPERTY_MSG_MESSAGE, message);
+            if (severity != null) responseMsg.put(PROPERTY_MSG_SEVERITY, severity);
+            if (result != null) responseMsg.put(PROPERTY_MSG_RESULT, result);
             msg.reply(responseMsg);
             success = true;
         }
@@ -242,7 +242,7 @@ public class Helper {
     }
 
     public int getInt(JsonObject document, String field, Message<JsonObject> msg, int defaultValue, boolean abort) {
-        Number paramValue = document.getNumber(field);
+        Number paramValue = document.getInteger(field);
         if (paramValue == null) {
             if (abort) throw new IllegalArgumentException(ERROR_FIELD_MISSING + field);
             if (msg != null) sendError(msg, VALUE_MSG_STATUSCODE_UNSPECIFIED, ERROR_FIELD_MISSING + field); // mandatory field
@@ -265,7 +265,7 @@ public class Helper {
     }
 
     public long getLong(JsonObject document, String field, Message<JsonObject> msg, long defaultValue, boolean abort) {
-        Number paramValue = document.getNumber(field);
+        Number paramValue = document.getInteger(field);
         if (paramValue == null) {
             if (abort) throw new IllegalArgumentException(ERROR_FIELD_MISSING + field);
             if (msg != null) sendError(msg, VALUE_MSG_STATUSCODE_UNSPECIFIED, ERROR_FIELD_MISSING + field); // mandatory field
@@ -292,7 +292,7 @@ public class Helper {
     }
 
     public JsonObject getObject(JsonObject document, String field, Message<JsonObject> msg, JsonObject defaultValue, boolean abort) {
-        JsonObject paramValue = document.getObject(field);
+        JsonObject paramValue = document.getJsonObject(field);
         if (paramValue == null) {
             if (abort) throw new IllegalArgumentException(ERROR_FIELD_MISSING + field);
             if (msg != null) sendError(msg, VALUE_MSG_STATUSCODE_UNSPECIFIED, ERROR_FIELD_MISSING + field); // mandatory field
@@ -319,7 +319,7 @@ public class Helper {
     }
 
     public JsonArray getArray(JsonObject document, String field, Message<JsonObject> msg, JsonArray defaultValue, boolean abort) {
-        JsonArray paramValue = document.getArray(field);
+        JsonArray paramValue = document.getJsonArray(field);
         if (paramValue == null) {
             if (abort) throw new IllegalArgumentException(ERROR_FIELD_MISSING + field);
             if (msg != null) sendError(msg, VALUE_MSG_STATUSCODE_UNSPECIFIED, ERROR_FIELD_MISSING + field); // mandatory field

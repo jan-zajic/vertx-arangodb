@@ -16,11 +16,10 @@
 
 package santo.vertx.arangodb.rest;
 
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
 import santo.vertx.arangodb.ArangoPersistor;
-import static santo.vertx.arangodb.rest.AbstractRestAPI.API_BASE_PATH;
 
 /**
  *

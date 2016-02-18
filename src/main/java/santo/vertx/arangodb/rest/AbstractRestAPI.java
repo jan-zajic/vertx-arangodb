@@ -18,11 +18,13 @@ package santo.vertx.arangodb.rest;
 
 import java.util.Arrays;
 import java.util.List;
-import org.vertx.java.core.eventbus.Message;
-import org.vertx.java.core.http.HttpClientRequest;
-import org.vertx.java.core.http.HttpHeaders;
-import org.vertx.java.core.json.JsonObject;
-import org.vertx.java.core.logging.Logger;
+
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpHeaders;
+import io.vertx.core.http.HttpMethod;
+import io.vertx.core.json.JsonObject;
+import io.vertx.core.logging.Logger;
 import santo.vertx.arangodb.ArangoPersistor;
 import santo.vertx.arangodb.Helper;
 
@@ -130,7 +132,7 @@ public abstract class AbstractRestAPI {
         // set headers
         if (persistor.getCredentials() != null) clientRequest.putHeader(HttpHeaders.AUTHORIZATION, "Basic " + persistor.getCredentials());
         if (headers != null) {
-            for (String header : headers.getFieldNames()) {
+            for (String header : headers.getMap().keySet()) {
                 clientRequest.putHeader(header, headers.getString(header));
             }
         }
@@ -237,7 +239,7 @@ public abstract class AbstractRestAPI {
      * @return true if attribute is available, false if not
      */
     protected boolean ensureAttribute(JsonObject document, String attributeName, Message<JsonObject> msg) {
-        if (!document.containsField(attributeName)) {
+        if (!document.containsKey(attributeName)) {
             helper.sendError(msg, "document attribute missing: " + attributeName);
             return false;
         }
@@ -383,7 +385,7 @@ public abstract class AbstractRestAPI {
      */
     protected void httpPatch(ArangoPersistor persistor, String apiPath, JsonObject headers, JsonObject body, int timeout, Message<JsonObject> msg) {
         // launch the request
-        HttpClientRequest clientRequest = persistor.getClient().patch(apiPath, new RestResponseHandler(msg, logger, helper));
+        HttpClientRequest clientRequest = persistor.getClient().request(HttpMethod.PATCH, apiPath, new RestResponseHandler(msg, logger, helper));
         
         // set headers
         clientRequest = addRequestHeaders(clientRequest, persistor, headers);
